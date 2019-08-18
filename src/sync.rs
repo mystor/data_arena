@@ -1,5 +1,5 @@
-use crate::{alloc_in_slab_common, alloc_slow, arena_drop};
-use crate::allocator::{Allocator, SlabHeader, Global};
+use crate::slab::{SlabHeader, alloc_in_slab_atomic, alloc_slow, arena_drop};
+use crate::allocator::{Allocator, Global};
 
 extern crate std;
 use std::sync::{Mutex, LockResult};
@@ -8,36 +8,6 @@ use core::sync::atomic::{AtomicPtr, Ordering};
 use core::ptr::{self, NonNull};
 use core::marker::PhantomData;
 use core::alloc::Layout;
-
-unsafe fn alloc_in_slab_atomic(
-    slab: *const SlabHeader,
-    layout: Layout,
-) -> Option<NonNull<u8>> {
-    if slab.is_null() {
-        return None;
-    }
-
-    // Perform a CAS-loop over the `used` field from `SlabHeader`. We can use a
-    // relaxed load for reads, as they'll be validated by the
-    // compare_exchange_weak, so it's OK to read an out-of-date value. The write
-    // doesn't actively protect any memory, so may also be `Relaxed`.
-    //
-    // XXX(nika): Get someone to double-check that `Relaxed` is OK here.
-    let mut prev = (*slab).used.load(Ordering::Relaxed);
-    loop {
-        let (next, ptr) = alloc_in_slab_common(slab, layout, prev)?;
-
-        match (*slab).used.compare_exchange_weak(
-            prev,
-            next,
-            Ordering::Relaxed,
-            Ordering::Relaxed,
-        ) {
-            Ok(_) => return Some(ptr),
-            Err(next_prev) => prev = next_prev,
-        }
-    }
-}
 
 fn ignore_poison<T>(result: LockResult<T>) -> T {
     match result {
@@ -95,8 +65,7 @@ impl<'a, A: Allocator> AtomicArena<'a, A> {
 
         // A new allocation is needed. Perform the allocation and add it to the
         // front of the list.
-        let (mut slab, ptr) = alloc_slow(&*alloc_guard, layout)?;
-        slab.as_mut().next = old_slab;
+        let (slab, ptr) = alloc_slow(&*alloc_guard, layout, old_slab)?;
 
         // This store is OK, as no thread will write to `self.slab` without
         // holding the alloc lock.
