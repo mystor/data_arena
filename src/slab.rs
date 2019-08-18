@@ -1,7 +1,7 @@
 use core::alloc::Layout;
+use core::mem;
 use core::ptr::{self, NonNull};
 use core::sync::atomic::AtomicUsize;
-use core::mem;
 
 #[cfg(feature = "std")]
 use core::sync::atomic::Ordering;
@@ -41,7 +41,10 @@ unsafe fn alloc_in_slab_common(
     if next > (*slab).size {
         return None;
     }
-    Some((next, NonNull::new_unchecked(start_ptr.add(padding) as *mut u8)))
+    Some((
+        next,
+        NonNull::new_unchecked(start_ptr.add(padding) as *mut u8),
+    ))
 }
 
 pub(crate) unsafe fn alloc_in_slab_nonatomic(
@@ -79,12 +82,10 @@ pub(crate) unsafe fn alloc_in_slab_atomic(
     loop {
         let (next, ptr) = alloc_in_slab_common(slab, layout, prev)?;
 
-        match (*slab).used.compare_exchange_weak(
-            prev,
-            next,
-            Ordering::Relaxed,
-            Ordering::Relaxed,
-        ) {
+        match (*slab)
+            .used
+            .compare_exchange_weak(prev, next, Ordering::Relaxed, Ordering::Relaxed)
+        {
             Ok(_) => return Some(ptr),
             Err(next_prev) => prev = next_prev,
         }
@@ -100,8 +101,7 @@ pub(crate) unsafe fn alloc_slow<S: SlabSource>(
     // Required capacity must include the header, the size of the required
     // allocation object, and padding required to align to min_layout's
     // alignment.
-    let padding = layout.align()
-        .saturating_sub(mem::align_of::<SlabHeader>());
+    let padding = layout.align().saturating_sub(mem::align_of::<SlabHeader>());
     let min_size = mem::size_of::<SlabHeader>()
         .checked_add(padding)?
         .checked_add(layout.size())?;
@@ -113,7 +113,7 @@ pub(crate) unsafe fn alloc_slow<S: SlabSource>(
 
     let slab = NonNull::new(alloc_ptr)?.cast::<SlabHeader>();
     let used = AtomicUsize::new(mem::size_of::<SlabHeader>());
-    ptr::write(slab.as_ptr(), SlabHeader {next, size, used});
+    ptr::write(slab.as_ptr(), SlabHeader { next, size, used });
 
     // As we just allocated our slab, we can do a non-atomic allocation.
     let ptr = alloc_in_slab_nonatomic(slab.as_ptr(), layout)
@@ -121,13 +121,11 @@ pub(crate) unsafe fn alloc_slow<S: SlabSource>(
     Some((slab, ptr))
 }
 
-pub(crate) unsafe fn arena_drop<S: SlabSource>(
-    source: &mut S,
-    mut ptr: *mut SlabHeader,
-) {
+pub(crate) unsafe fn arena_drop<S: SlabSource>(source: &mut S, mut ptr: *mut SlabHeader) {
     while let Some(curr) = NonNull::new(ptr) {
         ptr = curr.as_ref().next;
-        let layout = Layout::from_size_align_unchecked(curr.as_ref().size, mem::align_of::<SlabHeader>());
+        let layout =
+            Layout::from_size_align_unchecked(curr.as_ref().size, mem::align_of::<SlabHeader>());
         source.dealloc_slab(curr.as_ptr() as *mut u8, layout);
     }
 }

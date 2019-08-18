@@ -16,9 +16,8 @@ macro_rules! arena_common {
         impl<'a, S: $crate::SlabSource> $Arena<'a, S> {
             // ...
         }
-    }
+    };
 }
-
 
 mod arena;
 pub use arena::Arena;

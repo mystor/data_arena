@@ -1,10 +1,10 @@
+use crate::slab::{alloc_in_slab_nonatomic, alloc_slow, arena_drop, SlabHeader};
 use crate::SlabSource;
-use crate::slab::{SlabHeader, alloc_in_slab_nonatomic, alloc_slow, arena_drop};
 
-use core::ptr::{self, NonNull};
 use core::alloc::Layout;
-use core::marker::PhantomData;
 use core::cell::{Cell, RefCell};
+use core::marker::PhantomData;
+use core::ptr::{self, NonNull};
 
 /// An untyped lifecycle-managing arena.
 pub struct Arena<'a, S: SlabSource> {
@@ -22,7 +22,7 @@ impl<'a, S: SlabSource> Arena<'a, S> {
         Arena {
             slab: Cell::new(ptr::null_mut()),
             source: RefCell::new(source),
-            marker: PhantomData
+            marker: PhantomData,
         }
     }
 
@@ -36,7 +36,11 @@ impl<'a, S: SlabSource> Arena<'a, S> {
     }
 
     #[inline(never)]
-    unsafe fn try_alloc_raw_slow(&self, layout: Layout, old_slab: *mut SlabHeader) -> Option<NonNull<u8>> {
+    unsafe fn try_alloc_raw_slow(
+        &self,
+        layout: Layout,
+        old_slab: *mut SlabHeader,
+    ) -> Option<NonNull<u8>> {
         let mut source = self.source.borrow_mut();
         let (slab, ptr) = alloc_slow(&mut *source, layout, old_slab)?;
         self.slab.set(slab.as_ptr());

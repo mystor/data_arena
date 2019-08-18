@@ -1,13 +1,13 @@
+use crate::slab::{alloc_in_slab_atomic, alloc_slow, arena_drop, SlabHeader};
 use crate::SlabSource;
-use crate::slab::{SlabHeader, alloc_in_slab_atomic, alloc_slow, arena_drop};
 
 extern crate std;
-use std::sync::{Mutex, LockResult};
+use std::sync::{LockResult, Mutex};
 
-use core::sync::atomic::{AtomicPtr, Ordering};
-use core::ptr::{self, NonNull};
-use core::marker::PhantomData;
 use core::alloc::Layout;
+use core::marker::PhantomData;
+use core::ptr::{self, NonNull};
+use core::sync::atomic::{AtomicPtr, Ordering};
 
 fn ignore_poison<T>(result: LockResult<T>) -> T {
     match result {
@@ -32,7 +32,7 @@ impl<'a, S: SlabSource> SyncArena<'a, S> {
         SyncArena {
             slab: AtomicPtr::new(ptr::null_mut()),
             source: Mutex::new(source),
-            marker: PhantomData
+            marker: PhantomData,
         }
     }
 
@@ -46,7 +46,11 @@ impl<'a, S: SlabSource> SyncArena<'a, S> {
     }
 
     #[inline(never)]
-    unsafe fn try_alloc_raw_slow(&self, layout: Layout, orig_slab: *mut SlabHeader) -> Option<NonNull<u8>> {
+    unsafe fn try_alloc_raw_slow(
+        &self,
+        layout: Layout,
+        orig_slab: *mut SlabHeader,
+    ) -> Option<NonNull<u8>> {
         // Acquire the slab source lock. After this has been acquired, the
         // `slab` member cannot be changed by another thread.
         let mut source_guard = ignore_poison(self.source.lock());

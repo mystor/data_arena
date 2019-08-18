@@ -1,7 +1,7 @@
-use core::alloc::Layout;
 use crate::SlabSource;
-use core::ptr;
+use core::alloc::Layout;
 use core::cmp;
+use core::ptr;
 
 extern crate alloc;
 
@@ -18,9 +18,7 @@ impl Global {
 
 impl Default for Global {
     fn default() -> Self {
-        Global {
-            slab_size: 4096,
-        }
+        Global { slab_size: 4096 }
     }
 }
 
