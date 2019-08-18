@@ -4,14 +4,14 @@ use core::cmp;
 
 extern crate alloc;
 
-pub unsafe trait Allocator {
+pub unsafe trait SlabSource {
     /// Allocate a slab which must contain, at a minimum, enough space to
     /// allocate an aligned SlabHeader, followed by the object described by
     /// `Layout`, optionally with padding for alignment.
-    unsafe fn alloc_slab(&self, min_layout: Layout) -> (*mut u8, usize);
+    unsafe fn alloc_slab(&mut self, min_layout: Layout) -> (*mut u8, usize);
 
     /// Dealloc a slab which was previously allocated.
-    unsafe fn dealloc_slab(&self, slab: *mut u8, layout: Layout);
+    unsafe fn dealloc_slab(&mut self, slab: *mut u8, layout: Layout);
 }
 
 pub struct Global {
@@ -33,8 +33,8 @@ impl Default for Global {
     }
 }
 
-unsafe impl Allocator for Global {
-    unsafe fn alloc_slab(&self, min_layout: Layout) -> (*mut u8, usize) {
+unsafe impl SlabSource for Global {
+    unsafe fn alloc_slab(&mut self, min_layout: Layout) -> (*mut u8, usize) {
         let size = cmp::max(min_layout.size(), self.slab_size);
 
         // The alignment of our allocation is always based on `SlabHeader`, even
@@ -46,7 +46,7 @@ unsafe impl Allocator for Global {
         }
     }
 
-    unsafe fn dealloc_slab(&self, slab: *mut u8, layout: Layout) {
+    unsafe fn dealloc_slab(&mut self, slab: *mut u8, layout: Layout) {
         alloc::alloc::dealloc(slab, layout);
     }
 }

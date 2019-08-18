@@ -2,7 +2,7 @@ use core::alloc::Layout;
 use core::ptr::{self, NonNull};
 use core::sync::atomic::AtomicUsize;
 use core::mem;
-use crate::allocator::Allocator;
+use crate::allocator::SlabSource;
 
 #[cfg(feature = "std")]
 use core::sync::atomic::Ordering;
@@ -82,8 +82,8 @@ pub(crate) unsafe fn alloc_in_slab_atomic(
     }
 }
 
-pub(crate) unsafe fn alloc_slow<A: Allocator>(
-    alloc: &A,
+pub(crate) unsafe fn alloc_slow<S: SlabSource>(
+    source: &mut S,
     layout: Layout,
     next: *mut SlabHeader,
 ) -> Option<(NonNull<SlabHeader>, NonNull<u8>)> {
@@ -99,7 +99,7 @@ pub(crate) unsafe fn alloc_slow<A: Allocator>(
 
     let alloc_layout = Layout::from_size_align(min_size, mem::align_of::<SlabHeader>()).ok()?;
 
-    let (alloc_ptr, size) = alloc.alloc_slab(alloc_layout);
+    let (alloc_ptr, size) = source.alloc_slab(alloc_layout);
     assert!(size >= min_size);
 
     let slab = NonNull::new(alloc_ptr)?.cast::<SlabHeader>();
@@ -112,13 +112,13 @@ pub(crate) unsafe fn alloc_slow<A: Allocator>(
     Some((slab, ptr))
 }
 
-pub(crate) unsafe fn arena_drop<A: Allocator>(
-    alloc: &A,
+pub(crate) unsafe fn arena_drop<S: SlabSource>(
+    source: &mut S,
     mut ptr: *mut SlabHeader,
 ) {
     while let Some(curr) = NonNull::new(ptr) {
         ptr = curr.as_ref().next;
         let layout = Layout::from_size_align_unchecked(curr.as_ref().size, mem::align_of::<SlabHeader>());
-        alloc.dealloc_slab(curr.as_ptr() as *mut u8, layout);
+        source.dealloc_slab(curr.as_ptr() as *mut u8, layout);
     }
 }

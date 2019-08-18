@@ -1,5 +1,5 @@
 use crate::slab::{SlabHeader, alloc_in_slab_atomic, alloc_slow, arena_drop};
-use crate::allocator::{Allocator, Global};
+use crate::allocator::{SlabSource, Global};
 
 extern crate std;
 use std::sync::{Mutex, LockResult};
@@ -17,19 +17,19 @@ fn ignore_poison<T>(result: LockResult<T>) -> T {
 }
 
 /// An untyped lifecycle-managing arena.
-pub struct AtomicArena<'a, A: Allocator> {
+pub struct AtomicArena<'a, S: SlabSource> {
     slab: AtomicPtr<SlabHeader>,
-    alloc: Mutex<A>,
+    source: Mutex<S>,
     marker: PhantomData<&'a ()>,
 }
 
 arena_common!(AtomicArena);
 
-impl<'a, A: Allocator> AtomicArena<'a, A> {
-    pub fn with_alloc(alloc: A) -> Self {
+impl<'a, S: SlabSource> AtomicArena<'a, S> {
+    pub fn with_source(source: S) -> Self {
         AtomicArena {
             slab: AtomicPtr::new(ptr::null_mut()),
-            alloc: Mutex::new(alloc),
+            source: Mutex::new(source),
             marker: PhantomData
         }
     }
@@ -45,9 +45,9 @@ impl<'a, A: Allocator> AtomicArena<'a, A> {
 
     #[inline(never)]
     unsafe fn try_alloc_raw_slow(&self, layout: Layout, orig_slab: *mut SlabHeader) -> Option<NonNull<u8>> {
-        // Acquire the allocation lock. After this has been acquired, the `slab`
-        // member cannot be changed by another thread.
-        let alloc_guard = ignore_poison(self.alloc.lock());
+        // Acquire the slab source lock. After this has been acquired, the
+        // `slab` member cannot be changed by another thread.
+        let mut source_guard = ignore_poison(self.source.lock());
 
         // Check if the slab value has changed since the last time it was read.
         // If it has, try to allocate in the new slab.
@@ -65,7 +65,7 @@ impl<'a, A: Allocator> AtomicArena<'a, A> {
 
         // A new allocation is needed. Perform the allocation and add it to the
         // front of the list.
-        let (slab, ptr) = alloc_slow(&*alloc_guard, layout, old_slab)?;
+        let (slab, ptr) = alloc_slow(&mut *source_guard, layout, old_slab)?;
 
         // This store is OK, as no thread will write to `self.slab` without
         // holding the alloc lock.
@@ -77,12 +77,12 @@ impl<'a, A: Allocator> AtomicArena<'a, A> {
     }
 }
 
-impl<'a, A: Allocator> Drop for AtomicArena<'a, A> {
+impl<'a, S: SlabSource> Drop for AtomicArena<'a, S> {
     fn drop(&mut self) {
         // XXX: Not sure if I need to fence here to make sure this thread has
         // seem atomic loads/stores from other threads?
         unsafe {
-            arena_drop(&*ignore_poison(self.alloc.get_mut()), *self.slab.get_mut());
+            arena_drop(ignore_poison(self.source.get_mut()), *self.slab.get_mut());
         }
     }
 }
