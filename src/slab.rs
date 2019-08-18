@@ -2,10 +2,19 @@ use core::alloc::Layout;
 use core::ptr::{self, NonNull};
 use core::sync::atomic::AtomicUsize;
 use core::mem;
-use crate::allocator::SlabSource;
 
 #[cfg(feature = "std")]
 use core::sync::atomic::Ordering;
+
+pub unsafe trait SlabSource {
+    /// Allocate a slab which must contain, at a minimum, enough space to
+    /// allocate an aligned SlabHeader, followed by the object described by
+    /// `Layout`, optionally with padding for alignment.
+    unsafe fn alloc_slab(&mut self, min_layout: Layout) -> (*mut u8, usize);
+
+    /// Dealloc a slab which was previously allocated.
+    unsafe fn dealloc_slab(&mut self, slab: *mut u8, layout: Layout);
+}
 
 #[repr(C)]
 pub(crate) struct SlabHeader {

@@ -1,5 +1,6 @@
+use crate::SlabSource;
 use crate::slab::{SlabHeader, alloc_in_slab_atomic, alloc_slow, arena_drop};
-use crate::allocator::{SlabSource, Global};
+use crate::allocator::Global;
 
 extern crate std;
 use std::sync::{Mutex, LockResult};

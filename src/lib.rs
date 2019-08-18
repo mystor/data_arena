@@ -7,9 +7,10 @@ use core::cell::{Cell, RefCell};
 
 mod slab;
 use slab::{SlabHeader, alloc_in_slab_nonatomic, alloc_slow, arena_drop};
+pub use slab::SlabSource;
 
 pub mod allocator;
-use allocator::{SlabSource, Global};
+use allocator::{Global};
 
 macro_rules! arena_common {
     ($Arena:ident) => {

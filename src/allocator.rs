@@ -1,18 +1,9 @@
 use alloc::alloc::{Layout};
+use crate::SlabSource;
 use core::ptr;
 use core::cmp;
 
 extern crate alloc;
-
-pub unsafe trait SlabSource {
-    /// Allocate a slab which must contain, at a minimum, enough space to
-    /// allocate an aligned SlabHeader, followed by the object described by
-    /// `Layout`, optionally with padding for alignment.
-    unsafe fn alloc_slab(&mut self, min_layout: Layout) -> (*mut u8, usize);
-
-    /// Dealloc a slab which was previously allocated.
-    unsafe fn dealloc_slab(&mut self, slab: *mut u8, layout: Layout);
-}
 
 pub struct Global {
     slab_size: usize,
