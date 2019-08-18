@@ -1,4 +1,4 @@
-use alloc::alloc::{Layout};
+use core::alloc::Layout;
 use crate::SlabSource;
 use core::ptr;
 use core::cmp;

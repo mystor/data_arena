@@ -1,6 +1,5 @@
 use crate::SlabSource;
 use crate::slab::{SlabHeader, alloc_in_slab_atomic, alloc_slow, arena_drop};
-use crate::allocator::Global;
 
 extern crate std;
 use std::sync::{Mutex, LockResult};
@@ -17,18 +16,20 @@ fn ignore_poison<T>(result: LockResult<T>) -> T {
     }
 }
 
-/// An untyped lifecycle-managing arena.
-pub struct AtomicArena<'a, S: SlabSource> {
+/// A threadsafe untyped lifecycle-managing arena.
+///
+/// *This type is only available when built with the `std` feature*
+pub struct SyncArena<'a, S: SlabSource> {
     slab: AtomicPtr<SlabHeader>,
     source: Mutex<S>,
     marker: PhantomData<&'a ()>,
 }
 
-arena_common!(AtomicArena);
+arena_common!(SyncArena);
 
-impl<'a, S: SlabSource> AtomicArena<'a, S> {
+impl<'a, S: SlabSource> SyncArena<'a, S> {
     pub fn with_source(source: S) -> Self {
-        AtomicArena {
+        SyncArena {
             slab: AtomicPtr::new(ptr::null_mut()),
             source: Mutex::new(source),
             marker: PhantomData
@@ -78,7 +79,7 @@ impl<'a, S: SlabSource> AtomicArena<'a, S> {
     }
 }
 
-impl<'a, S: SlabSource> Drop for AtomicArena<'a, S> {
+impl<'a, S: SlabSource> Drop for SyncArena<'a, S> {
     fn drop(&mut self) {
         // XXX: Not sure if I need to fence here to make sure this thread has
         // seem atomic loads/stores from other threads?
