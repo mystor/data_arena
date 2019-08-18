@@ -1,14 +1,8 @@
 use alloc::alloc::{Layout};
 use core::mem;
 use core::ptr::{self, NonNull};
+use core::sync::atomic::AtomicUsize;
 use core::cmp;
-
-use radium::RadiumUsize;
-
-#[cfg(not(feature = "atomic"))]
-type CellUsize = core::cell::Cell<usize>;
-#[cfg(feature = "atomic")]
-type CellUsize = core::sync::atomic::AtomicUsize;
 
 pub unsafe trait Allocator {
     /// Allocate a slab which must contain, at a minimum, enough space to
@@ -73,9 +67,9 @@ unsafe impl Allocator for Global {
 
 #[repr(C)]
 pub struct SlabHeader {
-    pub( crate ) next: *mut SlabHeader,
-    pub( crate ) size: usize,
-    pub( crate ) used: CellUsize,
+    pub(crate) next: *mut SlabHeader,
+    pub(crate) size: usize,
+    pub(crate) used: AtomicUsize,
 }
 
 impl SlabHeader {
@@ -86,7 +80,7 @@ impl SlabHeader {
             SlabHeader {
                 next: ptr::null_mut(),
                 size,
-                used: RadiumUsize::new(mem::size_of::<SlabHeader>()),
+                used: AtomicUsize::new(mem::size_of::<SlabHeader>()),
             },
         );
         alloc
