@@ -1,33 +1,25 @@
 #![no_std]
 
 mod slab;
-pub use slab::SlabSource;
-
-#[cfg(any(feature = "alloc", feature = "std"))]
-mod alloc_source;
-#[cfg(any(feature = "alloc", feature = "std"))]
-pub use alloc_source::AllocSource;
-
-mod buffer_source;
-pub use buffer_source::BufferSource;
+pub mod source;
 
 macro_rules! arena_common {
     ($Arena:ident) => {
         #[cfg(any(feature = "alloc", feature = "std"))]
-        impl<'a> $Arena<'a, $crate::AllocSource> {
+        impl<'a> $Arena<'a, $crate::source::AllocSource> {
             pub fn new() -> Self {
                 Self::with_source(Default::default())
             }
         }
 
         #[cfg(any(feature = "alloc", feature = "std"))]
-        impl<'a> Default for $Arena<'a, $crate::AllocSource> {
+        impl<'a> Default for $Arena<'a, $crate::source::AllocSource> {
             fn default() -> Self {
                 Self::new()
             }
         }
 
-        impl<'a, S: $crate::SlabSource> $Arena<'a, S> {
+        impl<'a, S: $crate::source::SlabSource> $Arena<'a, S> {
             // ...
             pub fn try_alloc<T: Copy + 'a>(&self, t: T) -> Option<&T> {
                 self.try_alloc_no_drop(t)
