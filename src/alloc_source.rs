@@ -5,24 +5,24 @@ use core::ptr;
 
 extern crate alloc;
 
-pub struct Global {
+#[derive(Copy, Clone, Debug)]
+pub struct AllocSource {
     slab_size: usize,
 }
 
-impl Global {
-    pub fn new(slab_size: usize) -> Global {
-        let slab_size = slab_size.checked_next_power_of_two().unwrap_or(slab_size);
-        Global { slab_size }
+impl AllocSource {
+    pub fn new(slab_size: usize) -> AllocSource {
+        AllocSource { slab_size }
     }
 }
 
-impl Default for Global {
+impl Default for AllocSource {
     fn default() -> Self {
-        Global { slab_size: 4096 }
+        AllocSource { slab_size: 4096 }
     }
 }
 
-unsafe impl SlabSource for Global {
+unsafe impl SlabSource for AllocSource {
     unsafe fn alloc_slab(&mut self, min_layout: Layout) -> (*mut u8, usize) {
         let size = cmp::max(min_layout.size(), self.slab_size);
 
