@@ -62,7 +62,11 @@ macro_rules! arena_common {
                 I::Item: 'a,
             {
                 let item_layout = Layout::new::<I::Item>();
-                let layout = Layout::from_size_align(item_layout.size().checked_mul(len)?, item_layout.align()).ok()?;
+                let layout = Layout::from_size_align(
+                    item_layout.size().checked_mul(len)?,
+                    item_layout.align(),
+                )
+                .ok()?;
                 unsafe {
                     self.try_alloc_init_no_drop(
                         |ptr| {
