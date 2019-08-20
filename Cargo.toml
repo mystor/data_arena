@@ -4,7 +4,13 @@ version = "0.1.0"
 authors = ["Nika Layzell <nika@thelayzells.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "untyped arena allocator for Copy types"
+documentation = "https://docs.rs/data_arena"
+repository = "https://github.com/mystor/data_arena"
+readme = "README.md"
+license = "MIT"
+keywords = ["arena", "copy"]
+categories = ["memory-management", "no-std"]
 
 [features]
 default = ["std"]

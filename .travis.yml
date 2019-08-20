@@ -1,0 +1,19 @@
+language: rust
+sudo: false
+
+matrix:
+  include:
+    - rust: 1.36.0
+    - rust: stable
+    - rust: beta
+    - rust: nightly
+
+script:
+  - RUST_BACKTRACE=1 cargo test
+  - RUST_BACKTRACE=1 cargo test --no-default-features
+  - RUST_BACKTRACE=1 cargo test --no-default-features --features alloc
+  - RUST_BACKTRACE=1 cargo test --no-default-features --features std
+
+notifications:
+  email:
+    on_success: never

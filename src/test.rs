@@ -32,7 +32,6 @@ fn basic_alloc() {
     assert_eq!(thirty_p - byte2_p, 3);
 }
 
-
 #[test]
 fn super_aligned() {
     #[repr(align(32))]
@@ -65,4 +64,3 @@ fn super_aligned() {
     assert_eq!((c_p as *const u8).align_offset(32), 0);
     assert_eq!(c_p - ten_p, 28);
 }
-
