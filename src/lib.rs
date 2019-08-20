@@ -187,5 +187,5 @@ mod sync_arena;
 #[cfg(feature = "std")]
 pub use sync_arena::SyncArena;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod test;

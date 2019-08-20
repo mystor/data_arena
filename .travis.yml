@@ -10,9 +10,8 @@ matrix:
 
 script:
   - RUST_BACKTRACE=1 cargo test
-  - RUST_BACKTRACE=1 cargo test --no-default-features
-  - RUST_BACKTRACE=1 cargo test --no-default-features --features alloc
-  - RUST_BACKTRACE=1 cargo test --no-default-features --features std
+  - RUST_BACKTRACE=1 cargo build --no-default-features
+  - RUST_BACKTRACE=1 cargo build --no-default-features --features alloc
 
 notifications:
   email:
