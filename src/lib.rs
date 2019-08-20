@@ -35,15 +35,15 @@ macro_rules! arena_common {
         }
 
         impl<'a, S: $crate::source::InfallibleSource> $Arena<'a, S> {
-            pub fn alloc<T: Copy + 'a>(&self, t: T) -> &T {
+            pub fn alloc<T: Copy + 'a>(&self, t: T) -> &mut T {
                 self.alloc_no_drop(t)
             }
 
-            pub fn alloc_slice<'s, T: Copy + 'a>(&'s self, t: &[T]) -> &'s [T] {
+            pub fn alloc_slice<'s, T: Copy + 'a>(&'s self, t: &[T]) -> &'s mut [T] {
                 S::unwrap(self.try_alloc_slice(t), || Layout::for_value(t))
             }
 
-            pub fn alloc_from_iter<I>(&self, iter: I, len: usize) -> &[I::Item]
+            pub fn alloc_from_iter<I>(&self, iter: I, len: usize) -> &mut [I::Item]
             where
                 I: core::iter::IntoIterator,
                 I::Item: Copy + 'a,
@@ -51,15 +51,15 @@ macro_rules! arena_common {
                 self.alloc_from_iter_no_drop(iter, len)
             }
 
-            pub fn alloc_with<T: Copy + 'a>(&self, f: impl FnOnce() -> T) -> &T {
+            pub fn alloc_with<T: Copy + 'a>(&self, f: impl FnOnce() -> T) -> &mut T {
                 self.alloc_with_no_drop(f)
             }
 
-            pub fn alloc_no_drop<T: 'a>(&self, t: T) -> &T {
+            pub fn alloc_no_drop<T: 'a>(&self, t: T) -> &mut T {
                 S::unwrap(self.try_alloc_no_drop(t), || Layout::new::<T>())
             }
 
-            pub fn alloc_from_iter_no_drop<I>(&self, iter: I, len: usize) -> &[I::Item]
+            pub fn alloc_from_iter_no_drop<I>(&self, iter: I, len: usize) -> &mut [I::Item]
             where
                 I: core::iter::IntoIterator,
                 I::Item: 'a,
@@ -73,7 +73,7 @@ macro_rules! arena_common {
                 })
             }
 
-            pub fn alloc_with_no_drop<T: 'a>(&self, f: impl FnOnce() -> T) -> &T {
+            pub fn alloc_with_no_drop<T: 'a>(&self, f: impl FnOnce() -> T) -> &mut T {
                 S::unwrap(self.try_alloc_with_no_drop(f), || Layout::new::<T>())
             }
 
@@ -81,7 +81,7 @@ macro_rules! arena_common {
                 &self,
                 init: impl FnOnce(NonNull<u8>) -> NonNull<T>,
                 layout: Layout,
-            ) -> &T {
+            ) -> &mut T {
                 S::unwrap(self.try_alloc_init_no_drop(init, layout), || layout)
             }
 
@@ -91,11 +91,11 @@ macro_rules! arena_common {
         }
 
         impl<'a, S: $crate::source::SlabSource> $Arena<'a, S> {
-            pub fn try_alloc<T: Copy + 'a>(&self, t: T) -> Option<&T> {
+            pub fn try_alloc<T: Copy + 'a>(&self, t: T) -> Option<&mut T> {
                 self.try_alloc_no_drop(t)
             }
 
-            pub fn try_alloc_slice<'s, T: Copy + 'a>(&'s self, t: &[T]) -> Option<&'s [T]> {
+            pub fn try_alloc_slice<'s, T: Copy + 'a>(&'s self, t: &[T]) -> Option<&'s mut [T]> {
                 let layout = Layout::for_value(t);
                 unsafe {
                     self.try_alloc_init_no_drop(
@@ -110,7 +110,7 @@ macro_rules! arena_common {
                 }
             }
 
-            pub fn try_alloc_from_iter<I>(&self, iter: I, len: usize) -> Option<&[I::Item]>
+            pub fn try_alloc_from_iter<I>(&self, iter: I, len: usize) -> Option<&mut [I::Item]>
             where
                 I: core::iter::IntoIterator,
                 I::Item: Copy + 'a,
@@ -118,15 +118,15 @@ macro_rules! arena_common {
                 self.try_alloc_from_iter_no_drop(iter, len)
             }
 
-            pub fn try_alloc_with<T: Copy + 'a>(&self, f: impl FnOnce() -> T) -> Option<&T> {
+            pub fn try_alloc_with<T: Copy + 'a>(&self, f: impl FnOnce() -> T) -> Option<&mut T> {
                 self.try_alloc_with_no_drop(f)
             }
 
-            pub fn try_alloc_no_drop<T: 'a>(&self, t: T) -> Option<&T> {
+            pub fn try_alloc_no_drop<T: 'a>(&self, t: T) -> Option<&mut T> {
                 self.try_alloc_with_no_drop(|| t)
             }
 
-            pub fn try_alloc_from_iter_no_drop<I>(&self, iter: I, len: usize) -> Option<&[I::Item]>
+            pub fn try_alloc_from_iter_no_drop<I>(&self, iter: I, len: usize) -> Option<&mut [I::Item]>
             where
                 I: core::iter::IntoIterator,
                 I::Item: 'a,
@@ -155,7 +155,7 @@ macro_rules! arena_common {
                 }
             }
 
-            pub fn try_alloc_with_no_drop<T: 'a>(&self, f: impl FnOnce() -> T) -> Option<&T> {
+            pub fn try_alloc_with_no_drop<T: 'a>(&self, f: impl FnOnce() -> T) -> Option<&mut T> {
                 unsafe {
                     self.try_alloc_init_no_drop(
                         |p| {
@@ -171,9 +171,9 @@ macro_rules! arena_common {
                 &self,
                 init: impl FnOnce(NonNull<u8>) -> NonNull<T>,
                 layout: Layout,
-            ) -> Option<&T> {
+            ) -> Option<&mut T> {
                 let ptr = self.try_alloc_raw(layout)?;
-                Some(&*init(ptr).as_ptr())
+                Some(&mut *init(ptr).as_ptr())
             }
         }
     };
