@@ -186,3 +186,6 @@ pub use arena::Arena;
 mod sync_arena;
 #[cfg(feature = "std")]
 pub use sync_arena::SyncArena;
+
+#[cfg(test)]
+mod test;
