@@ -28,16 +28,8 @@ pub struct SyncArena<'a, S: SlabSource> {
 arena_common!(SyncArena);
 
 impl<'a, S: SlabSource> SyncArena<'a, S> {
-    pub fn with_source(source: S) -> Self {
-        SyncArena {
-            slab: AtomicPtr::new(ptr::null_mut()),
-            source: Mutex::new(source),
-            marker: PhantomData,
-        }
-    }
-
     pub unsafe fn try_alloc_raw(&self, layout: Layout) -> Option<NonNull<u8>> {
-        let slab = self.slab.load(Ordering::Relaxed);
+        let slab = NonNull::new(self.slab.load(Ordering::Relaxed));
         if let Some(ptr) = alloc_in_slab_atomic(slab, layout) {
             return Some(ptr);
         }
@@ -49,7 +41,7 @@ impl<'a, S: SlabSource> SyncArena<'a, S> {
     unsafe fn try_alloc_raw_slow(
         &self,
         layout: Layout,
-        orig_slab: *mut SlabHeader,
+        orig_slab: Option<NonNull<SlabHeader>>,
     ) -> Option<NonNull<u8>> {
         // Acquire the slab source lock. After this has been acquired, the
         // `slab` member cannot be changed by another thread.
@@ -62,7 +54,7 @@ impl<'a, S: SlabSource> SyncArena<'a, S> {
         // used to update the `slab` ptr at the end of this method. I am unsure
         // whether `Mutex` lock/unlock is sufficient to provide the ordering I
         // need here.
-        let old_slab = self.slab.load(Ordering::Acquire);
+        let old_slab = NonNull::new(self.slab.load(Ordering::Acquire));
         if old_slab != orig_slab {
             if let Some(ptr) = alloc_in_slab_atomic(old_slab, layout) {
                 return Some(ptr);
@@ -88,7 +80,10 @@ impl<'a, S: SlabSource> Drop for SyncArena<'a, S> {
         // XXX: Not sure if I need to fence here to make sure this thread has
         // seem atomic loads/stores from other threads?
         unsafe {
-            arena_drop(ignore_poison(self.source.get_mut()), *self.slab.get_mut());
+            arena_drop(
+                ignore_poison(self.source.get_mut()),
+                NonNull::new(*self.slab.get_mut()),
+            );
         }
     }
 }

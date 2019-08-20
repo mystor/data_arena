@@ -8,7 +8,7 @@ use core::ptr::{self, NonNull};
 
 /// An untyped lifecycle-managing arena.
 pub struct Arena<'a, S: SlabSource> {
-    slab: Cell<*mut SlabHeader>,
+    slab: Cell<Option<NonNull<SlabHeader>>>,
     // NOTE: This could _probably_ be an UnsafeCell, with the requirement that
     // SlabSource impls cannot be re-entrant.
     source: RefCell<S>,
@@ -18,14 +18,6 @@ pub struct Arena<'a, S: SlabSource> {
 arena_common!(Arena);
 
 impl<'a, S: SlabSource> Arena<'a, S> {
-    pub fn with_source(source: S) -> Self {
-        Arena {
-            slab: Cell::new(ptr::null_mut()),
-            source: RefCell::new(source),
-            marker: PhantomData,
-        }
-    }
-
     pub unsafe fn try_alloc_raw(&self, layout: Layout) -> Option<NonNull<u8>> {
         let slab = self.slab.get();
         if let Some(ptr) = alloc_in_slab_nonatomic(slab, layout) {
@@ -39,11 +31,11 @@ impl<'a, S: SlabSource> Arena<'a, S> {
     unsafe fn try_alloc_raw_slow(
         &self,
         layout: Layout,
-        old_slab: *mut SlabHeader,
+        old_slab: Option<NonNull<SlabHeader>>,
     ) -> Option<NonNull<u8>> {
         let mut source = self.source.borrow_mut();
         let (slab, ptr) = alloc_slow(&mut *source, layout, old_slab)?;
-        self.slab.set(slab.as_ptr());
+        self.slab.set(Some(slab));
         Some(ptr)
     }
 }

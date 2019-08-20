@@ -1,7 +1,7 @@
-use crate::source::SlabSource;
+use crate::source::{InfallibleSource, SlabSource};
 use core::alloc::Layout;
 use core::cmp;
-use core::ptr;
+use core::ptr::NonNull;
 
 extern crate alloc;
 
@@ -23,19 +23,24 @@ impl Default for AllocSource {
 }
 
 unsafe impl SlabSource for AllocSource {
-    unsafe fn alloc_slab(&mut self, min_layout: Layout) -> (*mut u8, usize) {
+    unsafe fn alloc_slab(&mut self, min_layout: Layout) -> Option<(NonNull<u8>, usize)> {
         let size = cmp::max(min_layout.size(), self.slab_size);
 
         // The alignment of our allocation is always based on `SlabHeader`, even
         // if `Layout` is more-aligned. This allows the `alloc::dealloc` method
         // to be called without storing the alignment of each slab.
-        match Layout::from_size_align(size, min_layout.align()) {
-            Ok(layout) => (alloc::alloc::alloc(layout), size),
-            Err(_) => (ptr::null_mut(), 0),
-        }
+        let layout = Layout::from_size_align(size, min_layout.align()).ok()?;
+        let ptr = NonNull::new(alloc::alloc::alloc(layout))?;
+        Some((ptr, size))
     }
 
-    unsafe fn dealloc_slab(&mut self, slab: *mut u8, layout: Layout) {
-        alloc::alloc::dealloc(slab, layout);
+    unsafe fn dealloc_slab(&mut self, slab: NonNull<u8>, layout: Layout) {
+        alloc::alloc::dealloc(slab.as_ptr(), layout);
+    }
+}
+
+unsafe impl InfallibleSource for AllocSource {
+    fn handle_error(layout: Layout) -> ! {
+        alloc::alloc::handle_alloc_error(layout)
     }
 }
